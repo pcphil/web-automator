@@ -110,10 +110,16 @@ class BrowserSession:
         response = await self.page.goto(url, wait_until="domcontentloaded", timeout=30000)
         status = response.status if response else "unknown"
         title = await self.page.title()
-        return ToolResult(
-            success=True,
-            output=f"Navigated to {url} (status={status}, title={title!r})",
-        )
+        msg = f"Navigated to {url} (status={status}, title={title!r})"
+
+        from web_automator.sites import try_auto_login
+
+        login_result = await try_auto_login(self.page)
+        if login_result:
+            title = await self.page.title()
+            msg += f"\n[{login_result} — now at {self.page.url}, title={title!r}]"
+
+        return ToolResult(success=True, output=msg)
 
     async def _click(self, selector: str) -> ToolResult:
         # Try CSS selector first; fall back to visible text
