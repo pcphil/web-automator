@@ -8,6 +8,7 @@ A Python + Playwright agent that accepts natural-language tasks, uses an LLM to 
 - **Multi-provider LLM support** — Anthropic (Claude) or OpenAI (GPT-4o)
 - **Playwright test generation** — agent inspects real DOM HTML to write reliable locators
 - **Skills system** — reusable playbooks for common tasks (search, forms, GitHub navigation)
+- **Auto-login for known sites** — deterministic login handlers keep credentials in `.env`, never sent to the LLM
 - **CLI + HTTP API** — use from the terminal or integrate via REST
 
 ## Stack
@@ -69,6 +70,8 @@ curl -X POST http://localhost:8000/run \
 | `MAX_STEPS`         | `20`                 | Max agent loop iterations                        |
 | `SKILLS_DIR`        | `./skills`           | Path to skills folder                            |
 | `TESTS_DIR`         | `./generated_tests`  | Output directory for generated Playwright tests  |
+| `SAUCEDEMO_USERNAME`| `standard_user`      | SauceDemo auto-login username                    |
+| `SAUCEDEMO_PASSWORD`| `secret_sauce`       | SauceDemo auto-login password                    |
 
 ## Skills
 
@@ -98,6 +101,27 @@ The agent can write `pytest-playwright` test files to `generated_tests/`:
 
 Generated tests are excluded from version control (see `.gitignore`).
 
+## Documentation
+
+See the [`docs/`](docs/) directory for detailed guides:
+
+- [Architecture Overview](docs/architecture.md) — data flow, component summary, request lifecycle
+- [Adding a Provider](docs/adding-a-provider.md) — how to integrate a new LLM provider
+- [Adding a Site Handler](docs/adding-a-site-handler.md) — how to add deterministic login for a new site
+- [Tool Reference](docs/tools.md) — all 13 tools, dispatch routing, and how to add new ones
+
+## Auto-Login
+
+The `sites/` package contains deterministic login handlers that run via Playwright — no credentials are ever sent to the LLM. When the agent navigates to a known site, the handler automatically detects the login page, fills credentials from `.env`, and submits the form.
+
+Currently supported sites:
+
+| Site | Handler | Env vars |
+|------|---------|----------|
+| [saucedemo.com](https://www.saucedemo.com) | `SauceDemoHandler` | `SAUCEDEMO_USERNAME`, `SAUCEDEMO_PASSWORD` |
+
+To add a new site, create a handler in `src/web_automator/sites/` that extends `SiteHandler` and register it in `sites/__init__.py`.
+
 ## Project Structure
 
 ```
@@ -111,6 +135,9 @@ web-automator/
     ├── skills.py              # Skill loader (recursive discovery)
     ├── test_writer.py         # write_test utility
     ├── providers/             # LLM provider abstractions
+    ├── sites/                 # Deterministic site login handlers
+    │   ├── base.py            # SiteHandler ABC
+    │   └── saucedemo.py       # SauceDemo handler
     ├── cli.py                 # Typer CLI
     └── server.py              # FastAPI server
 ```
